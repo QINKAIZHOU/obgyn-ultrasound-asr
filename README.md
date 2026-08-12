@@ -38,7 +38,6 @@ asr.py            # CLI 入口
 pipeline.py       # 模型加载 + 单段识别
 modes.py          # realtime / file / text 三个模式实现
 llm.py            # Qwen 优化器
-test.wav          # 测试音频（可用 make_test_audio.ps1 重新生成）
 ```
 
 ## 系统架构
