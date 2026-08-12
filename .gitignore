@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.log
+*.tmp
+*.bak
+*.swp
+# 大型本地下载的 wheel
+*.whl
+# 系统特定
+Thumbs.db
+.DS_Store
+# IDE
+.idea/
+.vscode/
