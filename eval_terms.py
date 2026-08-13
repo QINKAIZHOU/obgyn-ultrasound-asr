@@ -5,10 +5,13 @@
 """
 from __future__ import annotations
 
+import re
+
 from llm import UltrasoundOptimizer
 
 # (类别, 输入, 输出中必须出现的子串, 输出中不得出现的子串)
 # 类别 "无误" 的判定规则是输出与输入完全一致（此时后两项为空）。
+# 判定忽略空白差异（模型在中英文/数字间加空格属可接受行为）。
 CASES: list[tuple[str, str, list[str], list[str]]] = [
     # ---- 含错句：同音错字应被纠正 ----
     ("含错", "子工前位，大小形态正常。", ["子宫"], ["子工"]),
@@ -38,10 +41,18 @@ CASES: list[tuple[str, str, list[str], list[str]]] = [
 CATEGORIES = ["含错", "无误", "关键"]
 
 
+def _norm(s: str) -> str:
+    """比较前去除所有空白：模型在中英文/数字间加空格属可接受行为。"""
+    return re.sub(r"\s+", "", s)
+
+
 def judge(cat: str, src: str, out: str, present: list[str], absent: list[str]) -> bool:
+    out_n = _norm(out)
     if cat == "无误":
-        return out == src
-    return all(s in out for s in present) and all(s not in out for s in absent)
+        return out_n == _norm(src)
+    return all(_norm(s) in out_n for s in present) and all(
+        _norm(s) not in out_n for s in absent
+    )
 
 
 def main() -> None:
