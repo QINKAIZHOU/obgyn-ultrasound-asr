@@ -24,7 +24,7 @@ def main():
     tx.add_argument("text", nargs="*", help="要优化的文本（不传则进入交互模式）")
 
     for sp in (rt, fl, tx):
-        sp.add_argument("--no-enhance", action="store_true", help="跳过增强优化（报告内容提取）第二遍")
+        sp.add_argument("--no-enhance", action="store_true", help="跳过第二遍 LLM 增强（报告内容提取）")
     for sp in (rt, fl):
         sp.add_argument("--device", default="cuda:0", help="推理设备，如 cuda:0 或 cpu")
         sp.add_argument("--no-llm", action="store_true", help="关闭 Qwen 文本优化")

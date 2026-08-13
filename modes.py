@@ -230,14 +230,19 @@ def run_file(args):
         beg = span[0] if span else 0.0
         optimized, enhanced = emit_all(beg, sent, optimizer, do_enhance=do_enhance)
         srt_rows.append((span, optimized))
-        if enhanced is not None and not is_non_report(enhanced):
+        if enhanced and not is_non_report(enhanced):
             report_lines.append(enhanced)
     sys.stdout.flush()
 
     if args.srt:
         write_srt(args.srt, srt_rows)
-    if args.report and optimizer is not None:
-        write_report(args.report, report_lines)
+    if args.report:
+        if optimizer is None:
+            print("--report 需要开启 LLM，已跳过。")
+        elif not report_lines and args.no_enhance:
+            print("--report 与 --no-enhance 同用，无增强内容，已跳过。")
+        else:
+            write_report(args.report, report_lines)
 
 
 # ---------- text ----------
@@ -250,12 +255,16 @@ def run_text(args):
         if not line:
             return
         print(f"原文: {line}")
+        if args.no_enhance:
+            print("优化: ", end="", flush=True)
+            optimizer.optimize(line, stream=True)
+            print()
+            return
         optimized = optimizer.optimize(line) or line
         print(f"优化: {optimized}")
-        if not args.no_enhance:
-            print("增强: ", end="", flush=True)
-            optimizer.enhance(optimized, stream=True)
-            print()
+        print("增强: ", end="", flush=True)
+        optimizer.enhance(optimized, stream=True)
+        print()
 
     if args.text:
         for t in args.text:
