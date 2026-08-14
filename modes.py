@@ -109,6 +109,8 @@ def run_realtime(args):
     cache: dict = {}
     seen: set[tuple[int, int]] = set()
     cur_start: list[int | None] = [None]  # VAD 流式协议：已完成段起点报 -1
+    report_lines: list[str] = []
+    do_enhance = optimizer is not None and not args.no_enhance
 
     def handle_segments(segs):
         for beg, end in segs:
@@ -129,7 +131,9 @@ def run_realtime(args):
             )
             text = recognize(model, seg)
             if text:
-                emit_all(start, text, optimizer, do_enhance=not args.no_enhance)
+                _, enhanced = emit_all(start, text, optimizer, do_enhance=do_enhance)
+                if enhanced and not is_non_report(enhanced):
+                    report_lines.append(enhanced)
 
     try:
         while True:
@@ -156,6 +160,10 @@ def run_realtime(args):
         )
         if res and res[0].get("value"):
             handle_segments(res[0]["value"])
+        if report_lines:
+            print("整体梳理中…")
+            print("\n===== 整体报告 =====")
+            print(optimizer.finalize("\n".join(report_lines)))
         if stream is not None:
             stream.stop()
             stream.close()
@@ -202,13 +210,6 @@ def write_srt(path: str, rows: list[tuple[tuple[float, float] | None, str]]) -> 
     print(f"字幕已保存: {path}")
 
 
-def write_report(path: str, lines: list[str]) -> None:
-    with open(path, "w", encoding="utf-8") as f:
-        for line in lines:
-            f.write(line + "\n")
-    print(f"报告已保存: {path}（{len(lines)} 行）")
-
-
 def run_file(args):
     model = load_asr_pipeline(args.device)
     optimizer = load_optimizer(args.no_llm)
@@ -236,13 +237,25 @@ def run_file(args):
 
     if args.srt:
         write_srt(args.srt, srt_rows)
+
+    final_report = ""
+    if report_lines:
+        print("整体梳理中…")
+        final_report = optimizer.finalize("\n".join(report_lines))
+        print("\n===== 整体报告 =====")
+        print(final_report)
+
     if args.report:
         if optimizer is None:
             print("--report 需要开启 LLM，已跳过。")
-        elif not report_lines and args.no_enhance:
-            print("--report 与 --no-enhance 同用，无增强内容，已跳过。")
+        elif args.no_enhance:
+            print("--report 依赖增强优化，--no-enhance 时无法生成，已跳过。")
+        elif not final_report:
+            print("未识别到报告内容，未生成报告文件。")
         else:
-            write_report(args.report, report_lines)
+            with open(args.report, "w", encoding="utf-8") as f:
+                f.write(final_report + "\n")
+            print(f"报告已保存: {args.report}")
 
 
 # ---------- text ----------
