@@ -67,6 +67,38 @@ def judge_enhance(cat: str, out: str, present: list[str], absent: list[str]) -> 
     )
 
 
+# (输入=增强后句子组, 输出必须包含, 输出不得包含, 只能出现一次的子串)
+FINAL_CASES: list[tuple[str, list[str], list[str], list[str]]] = [
+    (
+        "子宫前位，大小约8.2×6.5×7.1cm，肌层回声均匀。子宫内膜厚约8mm。子宫前位，大小约8.2×6.5×7.1cm，肌层回声均匀。双侧卵巢未见明显异常。考虑子宫腺肌症可能，建议结合临床。",
+        ["【超声所见】", "【超声提示】", "子宫腺肌症"],
+        [],
+        ["8.2×6.5×7.1cm"],
+    ),
+    (
+        "子宫内膜厚约8mm。子宫内膜厚约9mm。双侧附件区未见明显异常。",
+        ["【超声所见】", "8mm", "9mm"],
+        [],
+        [],
+    ),
+    (
+        "好的检查完了去外面等报告吧。子宫前位，内膜厚约8mm。",
+        ["【超声所见】", "子宫前位", "8mm"],
+        ["等报告", "检查完了"],
+        [],
+    ),
+]
+
+
+def judge_final(out: str, present: list[str], absent: list[str], once: list[str]) -> bool:
+    out_n = _norm(out)
+    return (
+        all(_norm(s) in out_n for s in present)
+        and all(_norm(s) not in out_n for s in absent)
+        and all(out_n.count(_norm(s)) == 1 for s in once)
+    )
+
+
 def _norm(s: str) -> str:
     """比较前去除所有空白：模型在中英文/数字间加空格属可接受行为。"""
     return re.sub(r"\s+", "", s)
@@ -114,6 +146,17 @@ def main() -> None:
     for cat in ENHANCE_CATEGORIES:
         ok, n = estats[cat]
         print(f"增强-{cat}: {ok}/{n}")
+
+    print("\n===== 整体报告梳理 =====")
+    f_ok = 0
+    for i, (src, present, absent, once) in enumerate(FINAL_CASES, 1):
+        out = (optimizer.finalize(src) or "").strip()
+        ok = judge_final(out, present, absent, once)
+        f_ok += ok
+        print(f"[F{i:02d}/{len(FINAL_CASES)}][{'PASS' if ok else 'FAIL'}]")
+        print(f"  输入: {src}")
+        print(f"  输出: {out}")
+    print(f"整体: {f_ok}/{len(FINAL_CASES)}")
 
 
 if __name__ == "__main__":

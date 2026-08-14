@@ -4,11 +4,11 @@
 
 ## 功能
 
-- `realtime` — 麦克风伪流式实时识别（FSMN-VAD 切段 + Paraformer + 标点 + Qwen 两级优化）
-- `file` — 音频文件转写（自动 VAD 分段，可输出 SRT 字幕与纯报告文本）
+- `realtime` — 麦克风伪流式实时识别（FSMN-VAD 切段 + Paraformer + 标点 + Qwen 三级优化，停止时输出整体报告）
+- `file` — 音频文件转写（自动 VAD 分段，可输出 SRT 字幕与整体报告文本）
 - `text` — 命令行文本模式（Qwen 优化，可批量或交互）
 
-每个语音段输出三级结果：**原文**（ASR）→ **优化**（术语纠错）→ **增强**（提取纯报告内容，闲聊/指令显示为【非报告内容】）。
+每个语音段输出三级结果：**原文**（ASR）→ **优化**（术语纠错）→ **增强**（提取纯报告内容，闲聊/指令显示为【非报告内容】）。会话结束后对全部报告内容做整体梳理，输出第四级**整体报告**（【超声所见】+【超声提示】两段式）。
 
 ## 环境
 
@@ -30,10 +30,10 @@ python -m venv .venv
 .venv/Scripts/python asr.py realtime                          # 麦克风实时识别
 .venv/Scripts/python asr.py realtime --no-enhance             # 只要术语纠错（低延迟）
 .venv/Scripts/python asr.py file test.wav --srt out.srt       # 文件转写 + 字幕（含全部内容）
-.venv/Scripts/python asr.py file test.wav --report out.txt    # 额外输出纯报告文本
+.venv/Scripts/python asr.py file test.wav --report out.txt    # 输出整体报告（超声所见/提示两段式）
 .venv/Scripts/python asr.py text "子宫前位内幕厚约八毫米"      # 文本优化
 .venv/Scripts/python asr.py text                              # 文本交互模式
-.venv/Scripts/python eval_terms.py                            # 术语/增强验证集回归
+.venv/Scripts/python eval_terms.py                            # 术语/增强/整体验证集回归
 ```
 
 ## 项目结构
@@ -42,8 +42,8 @@ python -m venv .venv
 asr.py            # CLI 入口
 pipeline.py       # 模型加载 + 单段识别
 modes.py          # realtime / file / text 三个模式实现
-llm.py            # Qwen 优化器（术语纠错 + 报告内容增强 两级 prompt）
-eval_terms.py     # 术语/增强验证集（25 条用例）
+llm.py            # Qwen 优化器（术语纠错 + 报告内容增强 + 整体梳理 三级 prompt）
+eval_terms.py     # 术语/增强/整体验证集（28 条用例）
 ```
 
 ## 系统架构
@@ -55,5 +55,7 @@ eval_terms.py     # 术语/增强验证集（25 条用例）
                                                        ↓
                        llm.py 第二级（报告内容增强 ENHANCE_SYSTEM_PROMPT）→ 纯报告文本
                                                        ↓
-                                          终端三段输出 / SRT / --report 文件
+                              llm.py 第三级（整体梳理 FINAL_SYSTEM_PROMPT）→ 整体报告
+                                                       ↓
+                                          终端四段输出 / SRT / --report 文件
 ```
