@@ -17,6 +17,30 @@ SYSTEM_PROMPT = """你是一名妇产科与乳腺科超声报告助手。输入�
 5. 若原文没有错误，或原文不是医学内容，直接将原文原样输出，包括用词、语序、数值写法与中英文间距均保持原样。
 6. 任何情况下都只输出处理后的文本，绝不输出解释、提示、拒绝或评论。"""
 
+NON_REPORT_MARKER = "【非报告内容】"
+
+ENHANCE_SYSTEM_PROMPT = """你是一名妇产科与乳腺科超声报告整理助手。输入是医生超声检查过程中口述录音的识别文本（已经过术语纠错），其中可能混杂着非报告内容，如对患者的指示、闲聊、与报告无关的对话。你的任务：只保留属于超声检查报告的内容，整理为规范的书面报告语句输出。要求：
+1. 报告内容包括：检查所见（脏器位置、大小、回声、血流、测量数值等）与提示性诊断用语。非报告内容包括：对患者的指示（如"躺好""脱鞋""放松""屏住呼吸"）、医患闲聊、与检查无关的对话，一律删除，不在输出中保留或标注。
+2. 绝对不得改动数值、单位、左右侧等关键信息，不得增加或删除任何医学事实，不得在中英文与数字之间增删空格。
+3. 保持报告内容原有的句子顺序，不合并、不拆分。
+4. 若输入中完全没有任何报告内容，只输出：【非报告内容】
+5. 只输出整理后的报告文本本身（或【非报告内容】），不要任何解释、前缀、引号或评论。
+
+示例1：
+输入：来，躺上去，把衣服撩起来。子宫前位，大小约8.2×6.5×7.1cm，肌层回声均匀。好了可以起来了。
+输出：子宫前位，大小约8.2×6.5×7.1cm，肌层回声均匀。
+
+示例2：
+输入：东西放下脱鞋，脱裤子，往这边躺。
+输出：【非报告内容】"""
+
+
+def is_non_report(text: str | None) -> bool:
+    """增强输出是否为"非报告内容"标记（容忍模型输出的轻微变体）。"""
+    if not text:
+        return False
+    return "非报告" in text.strip()[:12]
+
 
 class UltrasoundOptimizer:
     def __init__(self, model_id: str = LLM_MODEL_ID):
@@ -31,9 +55,9 @@ class UltrasoundOptimizer:
         )
         self.model.eval()
 
-    def optimize(self, text: str, stream: bool = False) -> str | None:
+    def _run(self, system_prompt: str, text: str, stream: bool = False) -> str | None:
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": text},
         ]
         template_kwargs = dict(
@@ -64,3 +88,9 @@ class UltrasoundOptimizer:
         with torch.inference_mode():
             out = self.model.generate(**enc, **gen_kwargs)
         return self.tokenizer.decode(out[0][prompt_len:], skip_special_tokens=True).strip()
+
+    def optimize(self, text: str, stream: bool = False) -> str | None:
+        return self._run(SYSTEM_PROMPT, text, stream)
+
+    def enhance(self, text: str, stream: bool = False) -> str | None:
+        return self._run(ENHANCE_SYSTEM_PROMPT, text, stream)

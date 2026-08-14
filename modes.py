@@ -9,7 +9,7 @@ import time
 
 import numpy as np
 
-from llm import UltrasoundOptimizer
+from llm import UltrasoundOptimizer, is_non_report
 from pipeline import (
     CHUNK_MS,
     CHUNK_SAMPLES,
@@ -32,13 +32,25 @@ def load_optimizer(no_llm: bool) -> UltrasoundOptimizer | None:
     return None if no_llm else UltrasoundOptimizer()
 
 
-def emit_pair(beg_ms: float, text: str, optimizer: UltrasoundOptimizer | None) -> None:
-    """打印原文+优化对照。"""
+def emit_all(
+    beg_ms: float,
+    text: str,
+    optimizer: UltrasoundOptimizer | None,
+    do_enhance: bool = True,
+) -> tuple[str, str | None]:
+    """打印 原文/优化/增强 三行对照；返回 (优化文本, 增强文本或None)。"""
     ts = fmt_ts(beg_ms)
     print(f"[{ts}] 原文: {text}")
+    optimized = text
+    enhanced: str | None = None
     if optimizer is not None:
-        print(f"[{ts}] 优化: {optimizer.optimize(text)}")
+        optimized = optimizer.optimize(text) or text
+        print(f"[{ts}] 优化: {optimized}")
+        if do_enhance:
+            enhanced = optimizer.enhance(optimized)
+            print(f"[{ts}] 增强: {enhanced}")
     sys.stdout.flush()
+    return optimized, enhanced
 
 
 # ---------- realtime ----------
@@ -117,7 +129,7 @@ def run_realtime(args):
             )
             text = recognize(model, seg)
             if text:
-                emit_pair(start, text, optimizer)
+                emit_all(start, text, optimizer, do_enhance=not args.no_enhance)
 
     try:
         while True:
@@ -190,6 +202,13 @@ def write_srt(path: str, rows: list[tuple[tuple[float, float] | None, str]]) -> 
     print(f"字幕已保存: {path}")
 
 
+def write_report(path: str, lines: list[str]) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        for line in lines:
+            f.write(line + "\n")
+    print(f"报告已保存: {path}（{len(lines)} 行）")
+
+
 def run_file(args):
     model = load_asr_pipeline(args.device)
     optimizer = load_optimizer(args.no_llm)
@@ -205,14 +224,25 @@ def run_file(args):
     sentences = split_sentences(text)
     spans = sentence_spans(sentences, timestamps)
     srt_rows = []
+    report_lines: list[str] = []
+    do_enhance = optimizer is not None and not args.no_enhance
     for sent, span in zip(sentences, spans):
         beg = span[0] if span else 0.0
-        emit_pair(beg, sent, optimizer)
-        srt_rows.append((span, optimizer.optimize(sent) if optimizer else sent))
+        optimized, enhanced = emit_all(beg, sent, optimizer, do_enhance=do_enhance)
+        srt_rows.append((span, optimized))
+        if enhanced and not is_non_report(enhanced):
+            report_lines.append(enhanced)
     sys.stdout.flush()
 
     if args.srt:
         write_srt(args.srt, srt_rows)
+    if args.report:
+        if optimizer is None:
+            print("--report 需要开启 LLM，已跳过。")
+        elif not report_lines and args.no_enhance:
+            print("--report 与 --no-enhance 同用，无增强内容，已跳过。")
+        else:
+            write_report(args.report, report_lines)
 
 
 # ---------- text ----------
@@ -225,8 +255,15 @@ def run_text(args):
         if not line:
             return
         print(f"原文: {line}")
-        print("优化: ", end="", flush=True)
-        optimizer.optimize(line, stream=True)
+        if args.no_enhance:
+            print("优化: ", end="", flush=True)
+            optimizer.optimize(line, stream=True)
+            print()
+            return
+        optimized = optimizer.optimize(line) or line
+        print(f"优化: {optimized}")
+        print("增强: ", end="", flush=True)
+        optimizer.enhance(optimized, stream=True)
         print()
 
     if args.text:
@@ -240,12 +277,7 @@ def run_text(args):
                     line = input("> ")
                 except EOFError:
                     break
-                if not line.strip():
-                    continue
-                print(f"原文: {line}")
-                print("优化: ", end="", flush=True)
-                optimizer.optimize(line, stream=True)
-                print()
+                optimize_one(line)
         except KeyboardInterrupt:
             pass
         print()

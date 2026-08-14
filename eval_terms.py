@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 
-from llm import UltrasoundOptimizer
+from llm import UltrasoundOptimizer, is_non_report
 
 # (类别, 输入, 输出中必须出现的子串, 输出中不得出现的子串)
 # 类别 "无误" 的判定规则是输出与输入完全一致（此时后两项为空）。
@@ -39,6 +39,32 @@ CASES: list[tuple[str, str, list[str], list[str]]] = [
 ]
 
 CATEGORIES = ["含错", "无误", "关键"]
+
+# (类别, 输入=优化后文本, 输出中必须出现的子串, 输出中不得出现的子串)
+# 类别 "非报告" 的判定规则是输出被识别为非报告标记（此时后两项为空）。
+ENHANCE_CASES: list[tuple[str, str, list[str], list[str]]] = [
+    ("混合", "来，躺好，把衣服撩起来。子宫前位，大小约8.2×6.5×7.1cm，肌层回声均匀。好了，可以起来了。",
+     ["子宫前位", "8.2×6.5×7.1cm", "肌层回声均匀"], ["躺", "衣服", "起来"]),
+    ("混合", "别动啊，马上就好。右侧乳腺外上象限可见低回声结节，大小约12mm×8mm，BI-RADS 3类。放松，结束了。",
+     ["右侧", "低回声结节", "12mm×8mm", "3类"], ["别动", "放松", "结束"]),
+    ("混合", "宫内可见孕囊，可见胎心搏动。你几周了？末次月经什么时候？",
+     ["孕囊", "胎心搏动"], ["几周", "末次月经"]),
+    ("非报告", "东西放下，脱鞋，脱裤子，往这边躺。", [], []),
+    ("非报告", "好的，检查做完了，去外面等报告吧，下一个。", [], []),
+]
+
+ENHANCE_CATEGORIES = ["混合", "非报告"]
+
+
+def judge_enhance(cat: str, out: str, present: list[str], absent: list[str]) -> bool:
+    if cat == "非报告":
+        return is_non_report(out)
+    out_n = _norm(out)
+    if "非报告" in out_n:
+        return False  # 混合句被误判为纯非报告
+    return all(_norm(s) in out_n for s in present) and all(
+        _norm(s) not in out_n for s in absent
+    )
 
 
 def _norm(s: str) -> str:
@@ -74,6 +100,20 @@ def main() -> None:
         total += n
         print(f"{cat}: {ok}/{n}")
     print(f"总计: {total_ok}/{total}")
+
+    print("\n===== 增强优化（报告内容提取） =====")
+    estats = {c: [0, 0] for c in ENHANCE_CATEGORIES}
+    for i, (cat, src, present, absent) in enumerate(ENHANCE_CASES, 1):
+        out = (optimizer.enhance(src) or "").strip()
+        ok = judge_enhance(cat, out, present, absent)
+        estats[cat][1] += 1
+        estats[cat][0] += ok
+        print(f"[E{i:02d}/{len(ENHANCE_CASES)}][{cat}][{'PASS' if ok else 'FAIL'}]")
+        print(f"  输入: {src}")
+        print(f"  输出: {out}")
+    for cat in ENHANCE_CATEGORIES:
+        ok, n = estats[cat]
+        print(f"增强-{cat}: {ok}/{n}")
 
 
 if __name__ == "__main__":
