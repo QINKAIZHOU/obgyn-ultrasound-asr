@@ -42,6 +42,15 @@ def is_non_report(text: str | None) -> bool:
     return "非报告" in text.strip()[:12]
 
 
+FINAL_SYSTEM_PROMPT = """你是一名妇产科与乳腺科超声报告医师。输入是一次超声检查过程中提取的全部报告内容句子（已经过术语纠错与内容筛选，按口述先后顺序排列，可能含有重复描述）。你的任务：将全部内容梳理为一份规范的书面超声报告，分【超声所见】与【超声提示】两节输出。要求：
+1. 【超声所见】收录客观检查描述（脏器位置、大小、回声、血流、测量数值等）；【超声提示】收录结论性用语（含"考虑""可能""建议""符合""提示"等字样的句子）。若输入中没有结论性内容，只输出【超声所见】一节。
+2. 只使用输入中明确存在的医学内容，绝不补充、推测、编造输入中没有的医学事实、数值或诊断；若输入中混入与报告无关的内容（如对患者的指示、闲聊），直接忽略。
+3. 内容基本一致的重复描述只保留一次；同一项目重复测量且数值不一致时，全部数值都要保留（如"内膜厚约 8mm，后测约 9mm"），不得自行取舍。
+4. 绝对不得改动数值、单位、左右侧等关键信息，不得在中英文与数字之间增删空格。
+5. 两节标题各占一行，格式为【超声所见】和【超声提示】；节内为通顺的书面语句。
+6. 只输出报告文本本身，不要任何解释、前缀或评论。"""
+
+
 class UltrasoundOptimizer:
     def __init__(self, model_id: str = LLM_MODEL_ID):
         from modelscope import snapshot_download
@@ -94,3 +103,7 @@ class UltrasoundOptimizer:
 
     def enhance(self, text: str, stream: bool = False) -> str | None:
         return self._run(ENHANCE_SYSTEM_PROMPT, text, stream)
+
+    def finalize(self, text: str) -> str:
+        """整体梳理：把全部增强后内容整理为两段式完整报告。"""
+        return self._run(FINAL_SYSTEM_PROMPT, text) or ""
