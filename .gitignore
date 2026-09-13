@@ -10,6 +10,9 @@ __pycache__/
 *.swp
 # 大型本地下载的 wheel
 *.whl
+# 患者录音与评测输出（隐私/体积，绝不入库）
+data/
+eval_out/
 # 系统特定
 Thumbs.db
 .DS_Store
