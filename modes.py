@@ -229,11 +229,12 @@ def write_srt(path: str, rows: list[tuple[tuple[float, float] | None, str]]) -> 
     print(f"字幕已保存: {path}")
 
 
-def run_file(args):
-    model_id, hotword = resolve_engine(args)
-    model = load_asr_pipeline(args.device, model_id)
-    optimizer = load_optimizer(args.no_llm)
+def process_file(args, model, optimizer, hotword: str | None) -> dict | None:
+    """file 模式核心流程（供 run_file 与评测脚本复用，模型只加载一次）。
 
+    返回 {"asr_text", "sentences", "spans", "report_lines", "final_report"}；
+    未识别到语音时返回 None。
+    """
     print(f"转写: {args.audio}")
     gen_kwargs: dict = {}
     if hotword:
@@ -246,7 +247,7 @@ def run_file(args):
     res = model.generate(input=args.audio, batch_size_s=300, disable_pbar=True, **gen_kwargs)
     if not res or not (res[0].get("text") or "").strip():
         print("未识别到语音。")
-        return
+        return None
     text = res[0]["text"].strip()
     timestamps = res[0].get("timestamp") or []
 
@@ -284,6 +285,21 @@ def run_file(args):
             with open(args.report, "w", encoding="utf-8") as f:
                 f.write(final_report + "\n")
             print(f"报告已保存: {args.report}")
+
+    return {
+        "asr_text": text,
+        "sentences": sentences,
+        "spans": spans,
+        "report_lines": report_lines,
+        "final_report": final_report,
+    }
+
+
+def run_file(args):
+    model_id, hotword = resolve_engine(args)
+    model = load_asr_pipeline(args.device, model_id)
+    optimizer = load_optimizer(args.no_llm)
+    return process_file(args, model, optimizer, hotword)
 
 
 # ---------- text ----------
