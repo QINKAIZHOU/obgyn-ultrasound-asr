@@ -11,9 +11,12 @@ import numpy as np
 
 from llm import UltrasoundOptimizer, is_non_report
 from pipeline import (
+    ASR_MODEL_ID,
     CHUNK_MS,
     CHUNK_SAMPLES,
+    LEGACY_ASR_MODEL_ID,
     load_asr_pipeline,
+    load_hotwords,
     load_streaming_vad,
     recognize,
 )
@@ -30,6 +33,21 @@ def fmt_ts(ms: float) -> str:
 
 def load_optimizer(no_llm: bool) -> UltrasoundOptimizer | None:
     return None if no_llm else UltrasoundOptimizer()
+
+
+def resolve_engine(args) -> tuple[str, str | None]:
+    """根据 CLI 参数返回 (model_id, 热词字符串)。"""
+    if getattr(args, "legacy_asr", False):
+        print("--legacy-asr：回退旧版 Paraformer-large，热词不生效已忽略。")
+        return LEGACY_ASR_MODEL_ID, None
+    if getattr(args, "no_hotwords", False):
+        return ASR_MODEL_ID, None
+    hw = load_hotwords(args.hotwords)
+    if hw is None:
+        print(f"警告：未找到热词文件 {args.hotwords}，无热词继续。")
+    else:
+        print(f"热词已加载 {hw.count(' ') + 1} 条（{args.hotwords}）")
+    return ASR_MODEL_ID, hw
 
 
 def emit_all(
@@ -93,7 +111,8 @@ def _start_simulated_mic(q: queue.Queue, path: str, speed: float):
 
 
 def run_realtime(args):
-    model = load_asr_pipeline(args.device)
+    model_id, hotword = resolve_engine(args)
+    model = load_asr_pipeline(args.device, model_id)
     optimizer = load_optimizer(args.no_llm)
     vad = load_streaming_vad(args.device)
 
@@ -129,7 +148,7 @@ def run_realtime(args):
                 )
                 / 32768.0
             )
-            text = recognize(model, seg)
+            text = recognize(model, seg, hotword=hotword)
             if text:
                 _, enhanced = emit_all(start, text, optimizer, do_enhance=do_enhance)
                 if enhanced and not is_non_report(enhanced):
@@ -210,15 +229,25 @@ def write_srt(path: str, rows: list[tuple[tuple[float, float] | None, str]]) -> 
     print(f"字幕已保存: {path}")
 
 
-def run_file(args):
-    model = load_asr_pipeline(args.device)
-    optimizer = load_optimizer(args.no_llm)
+def process_file(args, model, optimizer, hotword: str | None) -> dict | None:
+    """file 模式核心流程（供 run_file 与评测脚本复用，模型只加载一次）。
 
+    返回 {"asr_text", "sentences", "spans", "report_lines", "final_report"}；
+    未识别到语音时返回 None。
+    """
     print(f"转写: {args.audio}")
-    res = model.generate(input=args.audio, batch_size_s=300, disable_pbar=True)
+    gen_kwargs: dict = {}
+    if hotword:
+        gen_kwargs["hotword"] = hotword
+    pp_file = getattr(args, "postprocess_hotwords", None)
+    if pp_file:
+        # 仅显式映射（错误词=>目标词），关闭拼音模糊匹配（不需 pypinyin）
+        gen_kwargs.update(postprocess_hotword_file=pp_file, postprocess_hotword_fuzzy=False)
+        print("已启用文本级纠错映射（注意：替换可能使 SRT 时间轴轻微漂移）")
+    res = model.generate(input=args.audio, batch_size_s=300, disable_pbar=True, **gen_kwargs)
     if not res or not (res[0].get("text") or "").strip():
         print("未识别到语音。")
-        return
+        return None
     text = res[0]["text"].strip()
     timestamps = res[0].get("timestamp") or []
 
@@ -256,6 +285,21 @@ def run_file(args):
             with open(args.report, "w", encoding="utf-8") as f:
                 f.write(final_report + "\n")
             print(f"报告已保存: {args.report}")
+
+    return {
+        "asr_text": text,
+        "sentences": sentences,
+        "spans": spans,
+        "report_lines": report_lines,
+        "final_report": final_report,
+    }
+
+
+def run_file(args):
+    model_id, hotword = resolve_engine(args)
+    model = load_asr_pipeline(args.device, model_id)
+    optimizer = load_optimizer(args.no_llm)
+    return process_file(args, model, optimizer, hotword)
 
 
 # ---------- text ----------

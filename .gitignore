@@ -10,6 +10,13 @@ __pycache__/
 *.swp
 # 大型本地下载的 wheel
 *.whl
+# 患者录音与评测输出（隐私/体积，绝不入库）
+data/
+eval_out/
+# 流程图生成物（HTML/PNG/检查报告，源 JSON 入库）
+flowchart-*.html
+flowchart-*.png
+flowchart-*.visual-check.*
 # 系统特定
 Thumbs.db
 .DS_Store

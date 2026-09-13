@@ -1,0 +1,85 @@
+词条	拼音
+艾滋病	ai zi bing
+白喉	bai hou
+白血病	bai xue bing
+半流质饮食	ban liu zhi yin shi
+斑疹伤寒	ban zhen shang han
+保护性隔离	bao hu xing ge li
+鼻饲	bi si
+不规则热	bu gui ze re
+蝉鸣样呼吸	chan ming yang hu xi
+肠道隔离	chang dao ge li
+弛张热	chi zhang re
+传导	chuan dao
+传递	chuan di
+对流	dui liu
+鹅口疮	e kou chuang
+肺动脉瓣狭窄	fei dong mai ban xia zhai
+肺动脉高压	fei dong mai gao ya
+肺动脉关闭不全	fei dong mai guan bi bu quan
+肺结核	fei jie he
+辐射	fu she
+高热	gao re
+隔离技术	ge li ji shu
+鼾声呼吸	han sheng hu xi
+洪脉	hong mai
+呼吸	hu xi
+呼吸道隔离	hu xi dao ge li
+坏死溃疡期	huai si kui yang qi
+缓脉	huan mai
+回归热	hui gui re
+昏迷	hun mi
+霍乱	huo luan
+稽留热	ji liu re
+甲亢	jia kang
+间歇热	jian xie re
+接触隔离	jie chu ge li
+禁食	jin shi
+狂犬病	kuang quan bing
+昆虫隔离	kun chong ge li
+流脑	liu nao
+流行性出血热	liu xing xing chu xue re
+流质饮食	liu zhi yin shi
+麻疹	ma zhen
+脉搏	mai bo
+脉搏短绌	mai bo duan chu
+梅毒	mei du
+面色	mian se
+免疫缺陷	mian yi que xian
+灭菌	mie jun
+内源性感染	nei yuan xing gan ran
+疟疾	nue ji
+偏瘫	pian tan
+破伤风	po shang feng
+普通饮食	pu tong yin shi
+器官移植	qi guan yi zhi
+气性坏疽	qi xing huai ju
+浅度溃疡期	qian du kui yang qi
+清洁	qing jie
+软质饮食	ruan zhi yin shi
+伤寒	shang han
+手术	shou shu
+鼠疫	shu yi
+丝脉	si mai
+速脉	su mai
+炭疽	tan ju
+碳酸氢钠	tan suan qing na
+外源性感染	wai yuan xing gan ran
+畏寒	wei han
+戊二醛	wu er quan
+无菌技术	wu jun ji shu
+污染区	wu ran qu
+细菌性痢疾	xi jun xing li ji
+消毒	xiao du
+消毒液	xiao du ye
+虚脱	xu tuo
+严密隔离	yan mi ge li
+炎性浸润期	yan xing jin run qi
+乙醇	yi chun
+乙型脑炎	yi xing nao yan
+医院感染	yi yuan gan ran
+淤血红润期	yu xue hong run qi
+早产儿	zao chan er
+蒸发	zheng fa
+主动脉瓣关闭不全	zhu dong mai ban guan bi bu quan
+主动脉瓣狭窄	zhu dong mai ban xia zhai

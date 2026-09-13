@@ -1,0 +1,106 @@
+词条	拼音
+扁口	bian kou
+剥离	bo li
+剥离器	bo li qi
+操作手柄	cao zuo shou bing
+铲状	chan zhuang
+肠钳	chang qian
+撑开器	cheng kai qi
+持针器	chi zhen qi
+持针钳	chi zhen qian
+冲洗	chong xi
+冲洗瓶	chong xi ping
+冲洗器	chong xi qi
+冲洗吸引器	chong xi xi yin qi
+冲洗吸引头	chong xi xi yin tou
+穿刺	chuan ci
+穿刺器	chuan ci qi
+穿刺套管	chuan ci tao guan
+大抓钳	da zhua qian
+带标	dai biao
+单极	dan ji
+单极导线	dan ji dao xian
+单极电切环	dan ji dian qie huan
+单晶片	dan jing pian
+胆囊	dan nang
+导光束	dao guang shu
+导线	dao xian
+电凝铲	dian ning chan
+电凝钩	dian ning gou
+电凝钳	dian ning qian
+电凝头	dian ning tou
+电切环	dian qie huan
+电针	dian zhen
+分离钳	fen li qian
+粉碎刀头	fen sui dao tou
+粉碎套管	fen sui tao guan
+封帽	feng mao
+腹壁	fu bi
+腹壁撑开器	fu bi cheng kai qi
+腹腔	fu qiang
+腹腔镜	fu qiang jing
+腹腔镜消毒盒	fu qiang jing xiao du he
+宫腔	gong qiang
+宫腔电针	gong qiang dian zhen
+宫腔镜	gong qiang jing
+活检钳	huo jian qian
+肌瘤	ji liu
+肌瘤钻	ji liu zuan
+接头	jie tou
+镜鞘	jing qiao
+举宫杯	ju gong bei
+冷光源	leng guang yuan
+密封	mi feng
+密封帽	mi feng mao
+内外鞘	nei wai qiao
+膨宫	peng gong
+膨宫泵	peng gong beng
+膨宫管	peng gong guan
+气腹	qi fu
+气腹针	qi fu zhen
+钳芯	qian xin
+三晶片	san jing pian
+扇形	shan xing
+扇形撑开器	shan xing cheng kai qi
+手柄	shou bing
+输卵管	shu luan guan
+输卵管抓钳	shu luan guan zhua qian
+输尿管	shu niao guan
+输尿管抓钳	shu niao guan zhua qian
+双极	shuang ji
+双极导线	shuang ji dao xian
+双极电切环	shuang ji dian qie huan
+双极钳芯	shuang ji qian xin
+双晶片	shuang jing pian
+钛抓钳	tai zhua qian
+陶瓷头	tao ci tou
+套管	tao guan
+推节器	tui jie qi
+外杆	wai gan
+弯分离钳	wan fen li qian
+弯剪刀	wan jian dao
+握式	wo shi
+无损伤	wu sun shang
+无损伤抓钳	wu sun shang zhua qian
+吸引器	xi yin qi
+吸引头	xi yin tou
+消毒器械盒	xiao du qi xie he
+小抓钳	xiao zhua qian
+旋切器	xuan qie qi
+鸭嘴钳	ya zui qian
+异物钳	yi wu qian
+婴儿	ying er
+婴儿辐射保暖台	ying er fu she bao nuan tai
+婴儿辐射台	ying er fu she tai
+婴儿台	ying er tai
+支气管	zhi qi guan
+支气管镜	zhi qi guan jing
+注药	zhu yao
+注药针头	zhu yao zhen tou
+抓钳	zhua qian
+转换	zhuan huan
+转换帽	zhuan huan mao
+转换器	zhuan huan qi
+子宫	zi gong
+子宫旋切器	zi gong xuan qie qi
+左弯分离钳	zuo wan fen li qian
