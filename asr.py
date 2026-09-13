@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 
 from modes import run_file, run_realtime, run_text
+from pipeline import DEFAULT_HOTWORDS_FILE
 
 
 def main():
@@ -23,11 +24,19 @@ def main():
     tx = sub.add_parser("text", help="命令行文本模式（Qwen 流式优化）")
     tx.add_argument("text", nargs="*", help="要优化的文本（不传则进入交互模式）")
 
+    fl.add_argument("--postprocess-hotwords", default=None, metavar="FILE",
+                    help="文本级纠错映射文件（错误词=>目标词），默认关闭")
+
     for sp in (rt, fl, tx):
         sp.add_argument("--no-enhance", action="store_true", help="跳过第二遍 LLM 增强（报告内容提取）")
     for sp in (rt, fl):
         sp.add_argument("--device", default="cuda:0", help="推理设备，如 cuda:0 或 cpu")
         sp.add_argument("--no-llm", action="store_true", help="关闭 Qwen 文本优化")
+        sp.add_argument("--hotwords", default=DEFAULT_HOTWORDS_FILE,
+                        help="模型级热词文件（每行一词，SeACo 引擎生效，默认 %(default)s）")
+        sp.add_argument("--no-hotwords", action="store_true", help="禁用语义热词偏置")
+        sp.add_argument("--legacy-asr", action="store_true",
+                        help="回退旧版 Paraformer-large（自动禁用热词，A/B 对比用）")
 
     args = p.parse_args()
     {"realtime": run_realtime, "file": run_file, "text": run_text}[args.cmd](args)
