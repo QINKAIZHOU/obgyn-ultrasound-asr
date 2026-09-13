@@ -7,3 +7,5 @@ soundfile
 transformers
 accelerate
 numpy
+# eval_report.py 解析医院导出 .xls 金标准（仅评测用）
+xlrd
