@@ -1,0 +1,59 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "超声 ASR 业务流程优化前后对比",
+    "subtitle": "Before：Paraformer-large 无热词 ｜ After：SeACo-Paraformer + 热词 + 三级 LLM 升级",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1120, 600],
+    "animation": "trace",
+    "visual_preset": "signal-flow"
+  },
+  "lanes": [
+    { "id": "before", "label": "Before · 原版流程" },
+    { "id": "after", "label": "After · 优化后流程" }
+  ],
+  "phases": [
+    { "id": "phase-input", "label": "音频输入", "fromCol": 0, "toCol": 0 },
+    { "id": "phase-asr", "label": "ASR 语音识别", "fromCol": 1, "toCol": 1, "variant": "emphasis" },
+    { "id": "phase-llm1", "label": "LLM 术语纠错", "fromCol": 2, "toCol": 2 },
+    { "id": "phase-llm2", "label": "LLM 内容增强", "fromCol": 3, "toCol": 3 },
+    { "id": "phase-llm3", "label": "LLM 整体梳理", "fromCol": 4, "toCol": 4 },
+    { "id": "phase-output", "label": "报告输出", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "llm-upgrade", "label": "三级 LLM 全面升级", "lane": "after", "fromCol": 2, "toCol": 4, "variant": "emphasis" }
+  ],
+  "mainPath": [
+    "before-input", "before-asr", "before-opt", "before-enh", "before-fin", "before-out"
+  ],
+  "nodes": [
+    { "id": "before-input", "lane": "before", "col": 0, "type": "frontend", "label": "音频输入", "sublabel": "麦克风 / 录音文件" },
+    { "id": "before-asr", "lane": "before", "col": 1, "type": "backend", "label": "Paraformer-large", "sublabel": "VAD + 标点 · 无热词", "width": 128 },
+    { "id": "before-opt", "lane": "before", "col": 2, "type": "cloud", "label": "术语纠错", "sublabel": "同音错字纠正" },
+    { "id": "before-enh", "lane": "before", "col": 3, "type": "cloud", "label": "内容增强", "sublabel": "整段过滤闲聊" },
+    { "id": "before-fin", "lane": "before", "col": 4, "type": "cloud", "label": "整体梳理", "sublabel": "两段式自由体" },
+    { "id": "before-out", "lane": "before", "col": 5, "type": "database", "label": "超声报告", "sublabel": "【所见】【提示】" },
+
+    { "id": "after-input", "lane": "after", "col": 0, "type": "frontend", "label": "音频输入", "sublabel": "麦克风 / 录音文件" },
+    { "id": "after-asr", "lane": "after", "col": 1, "type": "backend", "label": "SeACo-Paraformer", "sublabel": "热词偏置 · 999条专科词", "width": 128 },
+    { "id": "after-opt", "lane": "after", "col": 2, "type": "cloud", "label": "术语纠错 + 报数归一", "sublabel": "错字纠正 · 逐字报数→数字 mm", "width": 140 },
+    { "id": "after-enh", "lane": "after", "col": 3, "type": "cloud", "label": "混合段报告提取", "sublabel": "数值报读一律保留 · 精细提取", "width": 130 },
+    { "id": "after-fin", "lane": "after", "col": 4, "type": "cloud", "label": "医院模板对齐梳理", "sublabel": "子宫·附件·盆腔积液分节", "width": 130 },
+    { "id": "after-out", "lane": "after", "col": 5, "type": "database", "label": "结构化报告", "sublabel": "模板分节 · 禁编造" }
+  ],
+  "edges": [
+    { "id": "b1", "from": "before-input", "to": "before-asr", "label": "音频流", "role": "main", "variant": "emphasis" },
+    { "id": "b2", "from": "before-asr", "to": "before-opt", "label": "ASR 文本", "role": "main" },
+    { "id": "b3", "from": "before-opt", "to": "before-enh", "label": "纠错后文本", "role": "main" },
+    { "id": "b4", "from": "before-enh", "to": "before-fin", "label": "增强后文本", "role": "main" },
+    { "id": "b5", "from": "before-fin", "to": "before-out", "label": "终稿", "role": "main" },
+
+    { "id": "a1", "from": "after-input", "to": "after-asr", "label": "音频流", "role": "main", "variant": "emphasis" },
+    { "id": "a2", "from": "after-asr", "to": "after-opt", "label": "ASR 文本", "role": "main" },
+    { "id": "a3", "from": "after-opt", "to": "after-enh", "label": "纠错+归一文本", "role": "main" },
+    { "id": "a4", "from": "after-enh", "to": "after-fin", "label": "提取后内容", "role": "main" },
+    { "id": "a5", "from": "after-fin", "to": "after-out", "label": "终稿", "role": "main" }
+  ]
+}
