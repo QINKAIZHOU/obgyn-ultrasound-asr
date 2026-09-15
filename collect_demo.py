@@ -197,6 +197,24 @@ def _split_clauses(text: str) -> list[str]:
     return [c for c in _CLAUSE_SPLIT_RE.split(text) if c.strip()]
 
 
+def clause_diff(raw: str, optimized: str) -> list[dict]:
+    """被纠正片段的字级 diff：[{a: 原片段, b: 新片段}]（删除/插入缺省一侧）。"""
+    import difflib
+
+    sm = difflib.SequenceMatcher(a=raw, b=optimized, autojunk=False)
+    out = []
+    for op, a1, a2, b1, b2 in sm.get_opcodes():
+        if op == "equal":
+            continue
+        d = {}
+        if a1 < a2:
+            d["a"] = raw[a1:a2]
+        if b1 < b2:
+            d["b"] = optimized[b1:b2]
+        out.append(d)
+    return out
+
+
 def build_sentences(result: dict, captured: list[dict], timestamps: list) -> tuple[list[dict], list[dict]]:
     """合并 process_file 结果与捕获的逐句三级。
 
@@ -231,7 +249,8 @@ def build_sentences(result: dict, captured: list[dict], timestamps: list) -> tup
             t0, t1 = round(sp[0], 1), round(sp[1], 1)
         else:  # 无时间戳兜底：落到句级起始时刻
             t0, t1 = round(captured[si]["beg_ms"], 1), None
-        sentences.append({"i": i, "si": si, "t0": t0, "t1": t1, "raw": rc, "optimized": oc})
+        sentences.append({"i": i, "si": si, "t0": t0, "t1": t1, "raw": rc, "optimized": oc,
+                          **({"diff": clause_diff(rc, oc)} if rc != oc else {})})
 
     report_items = [{
         "i": si, "t0": round(cap["beg_ms"], 1),
@@ -273,6 +292,9 @@ def validate_payload(p: dict, with_llm: bool) -> None:
                 problems.append(f"短句 {s.get('i')} 缺字段: {k}")
         if s.get("t1") is not None and s["t1"] < s["t0"]:
             problems.append(f"短句 {s['i']} 时间轴倒挂: t1 < t0")
+        for d in s.get("diff", []):
+            if not (d.get("a") or d.get("b")):
+                problems.append(f"短句 {s['i']} diff 片段为空")
         if s.get("t1") is not None:
             if s["t1"] < last_t1:
                 problems.append(f"短句 {s['i']} 时间轴非单调")

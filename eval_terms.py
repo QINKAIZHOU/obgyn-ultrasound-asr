@@ -7,8 +7,9 @@ ENHANCE_SYSTEM_PROMPT 的混合段报告成分提取、FINAL_SYSTEM_PROMPT 的�
 from __future__ import annotations
 
 import re
+import sys
 
-from llm import UltrasoundOptimizer, is_non_report
+from llm import UltrasoundOptimizer, conflict_check, is_non_report
 
 # (类别, 输入, 输出中必须出现的子串, 输出中不得出现的子串)
 # 类别 "无误" 的判定规则是输出与输入完全一致（此时后两项为空）。
@@ -27,6 +28,10 @@ CASES: list[tuple[str, str, list[str], list[str]]] = [
     ("含错", "胎儿双顶颈约85mm，骨股长约66mm。", ["双顶径", "股骨长"], ["双顶颈", "骨股长"]),
     ("含错", "右侧乳腺节节，边界清晰，可见流血信号。", ["结节", "血流信号"], ["节节", "流血信号"]),
     ("含错", "左侧乳腺可见细小盖化，BI-RADS 4A类。", ["钙化"], ["盖化"]),
+    # ---- 上下文冲突句：同音错字构成通顺常用词，须结合上下文纠正（LLM + 冲突检查兜底） ----
+    ("含错", "子宫前臂肌层可见中低回声区，大小约25mm×18mm。", ["前壁", "25mm×18mm"], ["前臂"]),
+    ("含错", "肌层回升均匀，宫壁回升稍强。", ["回声"], ["回升"]),
+    ("含错", "子宫基层回声不均，可见基层瘤样低回声。", ["肌层"], ["基层"]),
     # ---- 无误句：应原样输出 ----
     ("无误", "子宫前位，大小形态正常，肌层回声均匀。", [], []),
     ("无误", "双侧卵巢未见明显异常回声。", [], []),
@@ -38,8 +43,9 @@ CASES: list[tuple[str, str, list[str], list[str]]] = [
     ("关键", "胎儿双顶径约85mm，股骨长约66mm，羊水指数约120mm。", ["85mm", "66mm", "120mm"], []),
     ("关键", "右侧乳腺外上象限可见低回声结节，大小约12mm×8mm，BI-RADS 3类。", ["右侧", "12mm×8mm", "3类"], []),
     # ---- 报数句：逐字报读的测量值应还原为阿拉伯数字 mm，禁止单位换算 ----
+    # （同时覆盖上下文冲突纠错：左前臂→左前壁，历史上该案例漏检过此回归）
     ("报数", "子宫左前臂肌层中低回声区六一六一六零毫米，压迫宫腔。",
-     ["61", "60", "mm", "压迫宫腔"], ["cm", "厘米", "六一六一六零"]),
+     ["前壁", "61", "60", "mm", "压迫宫腔"], ["前臂", "cm", "厘米", "六一六一六零"]),
     ("报数", "内膜厚度八毫米，宫颈长度三十二毫米。",
      ["8mm", "32mm"], ["八毫米", "三十二", "cm", "厘米"]),
     ("报数", "子宫大小长径五十二毫米，左右径五十三毫米，前后径四十二毫米。",
@@ -157,6 +163,28 @@ def judge(cat: str, src: str, out: str, present: list[str], absent: list[str]) -
 
 
 def main() -> None:
+    if "--check-conflicts" in sys.argv:
+        # 离线自测 conflict_check：锚点命中必须纠正、真本义必须放行（不加载模型）
+        pos = [
+            ("子宫前臂肌层中低回声区", "子宫前壁肌层中低回声区"),
+            ("左前臂突起中低回声区", "左前壁突起中低回声区"),
+            ("肌层回升均匀", "肌层回声均匀"),
+            ("宫壁回升稍强", "宫壁回声稍强"),
+            ("内膜回升欠均匀", "内膜回声欠均匀"),
+            ("子宫基层回声不均", "子宫肌层回声不均"),
+            ("宫体面膜增厚", "宫体内膜增厚"),
+        ]
+        neg = ["今天敷了面膜，胳膊前臂晒伤了", "基层医院复查即可", "回升的体温", "前臂骨折石膏固定"]
+        for src, want in pos:
+            got, hits = conflict_check(src)
+            assert got == want, f"应纠正: {src} → {got}（期望 {want}）"
+            assert hits, src
+        for src in neg:
+            got, hits = conflict_check(src)
+            assert got == src and not hits, f"误伤本义: {src} → {got}"
+        print(f"CONFLICT_OK（{len(pos)} 条锚点命中全纠正，{len(neg)} 条本义全放行）")
+        return
+
     optimizer = UltrasoundOptimizer()
     stats = {c: [0, 0] for c in CATEGORIES}  # 类别 -> [通过, 总数]
     for i, (cat, src, present, absent) in enumerate(CASES, 1):

@@ -16,7 +16,11 @@
   .venv/Scripts/python demo/inject_demo.py
       [--flow archify/us_flow.html] [--panel demo/panel.js]
       [--data demo/demo_data.js] [--out archify/us_flow_demo.html]
+      [--no-embed-audio]
   .venv/Scripts/python demo/inject_demo.py --check   # 只校验已生成产物
+
+默认单文件模式：演示数据内联 + 音频 base64 嵌入，产物拷到任意离线机器双击即跑
+（wav 约 21MB → base64 后页面约 29MB）；--no-embed-audio 回退为引用外部文件。
 """
 from __future__ import annotations
 
@@ -84,7 +88,7 @@ INJECT_JS = """
     var drawer = document.getElementById("demo-drawer");
     var fab = document.getElementById("demo-fab");
     var panel = window.DemoPanel.mount(document.getElementById("demo-panel"), {
-      audioPath: "__AUDIO_PATH__",
+      audioPath: window.DEMO_AUDIO_URI || "__AUDIO_PATH__",
       onActiveNode: function (i) {
         document.querySelectorAll("g.demo-active").forEach(function (g) { g.classList.remove("demo-active"); });
         if (i == null) return;
@@ -154,37 +158,65 @@ INJECT_JS = """
 """
 
 
-def load_audio_rel(data_js: Path, out_html: Path, demo_dir: Path) -> str:
-    """从 demo_data.js 解析音频路径，换算为相对输出页面的路径。"""
+def resolve_audio_abs(data_js: Path, demo_dir: Path):
+    """从 demo_data.js 解析音频绝对路径与 meta。"""
     text = data_js.read_text(encoding="utf-8").strip()
     prefix = "window.DEMO_DATA = "
     if not text.startswith(prefix) or not text.endswith(";"):
         raise SystemExit(f"demo_data.js 格式异常: {data_js}")
     meta = json.loads(text[len(prefix):-1])["meta"]
-    audio_abs = (demo_dir / meta["audio_rel"]).resolve()
+    return (demo_dir / meta["audio_rel"]).resolve(), meta
+
+
+def load_audio_rel(data_js: Path, out_html: Path, demo_dir: Path) -> str:
+    """从 demo_data.js 解析音频路径，换算为相对输出页面的路径。"""
+    audio_abs, _ = resolve_audio_abs(data_js, demo_dir)
     return Path(os.path.relpath(audio_abs, out_html.resolve().parent)).as_posix()
 
 
-def inject(flow: Path, panel: Path, data: Path, out: Path) -> None:
+def embed_audio_uri(audio_abs: Path) -> str:
+    """wav → data URI（base64）。"""
+    import base64
+
+    size_mb = audio_abs.stat().st_size / 1e6
+    print(f"音频嵌入中: {audio_abs.name}（{size_mb:.1f}MB → base64 约 {size_mb * 1.37:.1f}MB）...")
+    uri = "data:audio/wav;base64," + base64.b64encode(audio_abs.read_bytes()).decode("ascii")
+    return uri
+
+
+def inject(flow: Path, panel: Path, data: Path, out: Path, embed_audio: bool = True) -> None:
     html = flow.read_text(encoding="utf-8")
     if MARKER in html:
         raise SystemExit(f"源页已含注入标记，请确认用的是未注入的源文件: {flow}")
     if "</body>" not in html:
         raise SystemExit(f"源页无 </body>: {flow}")
 
-    audio_path = load_audio_rel(data, out, data.parent)
-    data_ref = Path(os.path.relpath(data.resolve(), out.resolve().parent)).as_posix()
+    if embed_audio:
+        audio_abs, _ = resolve_audio_abs(data, data.parent)
+        if not audio_abs.exists():
+            raise SystemExit(f"音频不存在: {audio_abs}")
+        audio_path = ""
+        audio_embed = ("<script>window.DEMO_AUDIO_URI = "
+                       + json.dumps(embed_audio_uri(audio_abs)) + ";</script>\n")
+    else:
+        audio_path = load_audio_rel(data, out, data.parent)
+        audio_embed = ""
+
+    data_ref = data.read_text(encoding="utf-8").strip()
     bootstrap = (
         INJECT_CSS
         + INJECT_HTML
-        + f'<script src="{data_ref}"></script>\n'
+        + "<script>\n" + data_ref + "\n</script>\n"          # 演示数据内联（单文件）
+        + audio_embed
         + "<script>\n" + panel.read_text(encoding="utf-8") + "\n</script>\n"
         + INJECT_JS.replace("__NODE_STEP__", json.dumps(NODE_STEP_MAP))
                    .replace("__AUDIO_PATH__", audio_path)
     )
     out_html = html.replace("</body>", bootstrap + "</body>")
     out.write_text(out_html, encoding="utf-8")
-    print(f"已生成: {out}（音频相对路径 {audio_path}）")
+    size_mb = out.stat().st_size / 1e6
+    mode = "单文件（数据+音频已嵌入）" if embed_audio else f"外部音频相对路径 {audio_path}"
+    print(f"已生成: {out}（{size_mb:.1f}MB，{mode}）")
 
 
 def check(out: Path) -> None:
@@ -213,13 +245,16 @@ def main() -> None:
     ap.add_argument("--panel", default="demo/panel.js")
     ap.add_argument("--data", default="demo/demo_data.js")
     ap.add_argument("--out", default="archify/us_flow_demo.html")
+    ap.add_argument("--no-embed-audio", action="store_true",
+                    help="不嵌入音频（保留外部相对路径引用，页面更小）")
     ap.add_argument("--check", action="store_true", help="只校验已生成的产物")
     args = ap.parse_args()
 
     if args.check:
         check(Path(args.out))
         return
-    inject(Path(args.flow), Path(args.panel), Path(args.data), Path(args.out))
+    inject(Path(args.flow), Path(args.panel), Path(args.data), Path(args.out),
+           embed_audio=not args.no_embed_audio)
     check(Path(args.out))
 
 

@@ -69,6 +69,11 @@
   .dp-arrow { color:var(--blue); font-weight:700; padding:0 5px; }
   .dp-root mark.dp-w { background:var(--red-bg); color:var(--red); border-radius:3px; padding:0 2px; text-decoration:line-through; }
   .dp-root mark.dp-r { background:var(--green-bg); color:var(--green); border-radius:3px; padding:0 2px; font-weight:600; }
+  .dp-root mark.dp-hw { background:var(--red-bg); color:var(--red); border-radius:3px; padding:0 2px; font-weight:600; }
+  .dp-sent .dp-col { flex:1; min-width:0; }
+  .dp-proc { font-size:12px; color:var(--gray); line-height:1.5; }
+  .dp-proc del { color:var(--red); margin-right:4px; }
+  .dp-res { margin-top:2px; display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; }
   .dp-chips { display:flex; flex-wrap:wrap; gap:7px; }
   .dp-chip { background:var(--blue-bg); color:var(--blue-dk); border-radius:14px; padding:3px 11px; font-size:13px; }
   .dp-chip b { font-size:11.5px; color:var(--gray); font-weight:400; margin-left:3px; }
@@ -276,58 +281,95 @@
     });
 
     RENDER[4] = () => {                                   // ⑤ 医疗热词库
-      showDock(false); sentSync = false;
+      showDock(true); sentSync = false;
       const h = DATA.hotwords;
-      const chips = h.hits.slice(0, 36).map(x => `<span class="dp-chip">${esc(x.word)}<b>×${x.count}</b></span>`).join("");
+      const hl = (raw, word) => esc(raw).split(esc(word)).join(`<mark class="dp-hw">${esc(word)}</mark>`);
+      const ctx = h.hits.map(x => ({
+        word: x.word, count: x.count,
+        rows: DATA.sentences.filter(s => s.raw.includes(x.word)).map(s => `
+          <div class="dp-sent"><span class="dp-ts">${fmt(s.t0)}</span>
+            ${s.t1 != null ? `<button class="dp-play" data-frag="${s.t0},${s.t1}">▶</button>` : ""}
+            <span class="dp-txt">${hl(s.raw, x.word)}</span></div>`).join(""),
+      }));
+      const groups = ctx.filter(c => c.rows).map(c => `
+        <div class="dp-card dp-fade"><h4>${esc(c.word)}
+          <b style="color:var(--gray);font-weight:400;font-size:12.5px">×${c.count}</b></h4>${c.rows}</div>`).join("");
+      const missing = ctx.filter(c => !c.rows)
+        .map(c => `<span class="dp-chip">${esc(c.word)}<b>×${c.count}</b></span>`).join("");
       body.innerHTML = `
         <div class="dp-card dp-fade"><h4>热词偏置 · 本次命中 ${h.hits.length} 个</h4>
           <p style="line-height:1.85">系统内置 <b>${h.total}</b> 条超声/妇产科/乳腺专科热词，在识别解码阶段做语义偏置——
           「卵巢」「肌层」「宫腔」等术语即使发音模糊也能被优先召回，从<b>源头</b>减少同音错字。</p>
-          <div class="dp-chips" style="margin-top:10px">${chips || "<span class='dp-tip'>（本段音频未命中热词）</span>"}</div>
-          ${h.hits.length > 36 ? `<p class="dp-tip" style="margin-top:8px">…等共 ${h.hits.length} 个命中词</p>` : ""}</div>`;
+          <p class="dp-tip">下方按命中热词列出原始识别文字，点击 ▶ 可回放对应语音片段（热词标红）。</p>
+          ${missing ? `<div class="dp-chips" style="margin-top:10px">${missing}</div>` : ""}</div>
+        ${groups || "<div class='dp-card'><span class='dp-tip'>本段音频未命中热词上下文</span></div>"}`;
     };
 
     RENDER[5] = () => {                                   // ⑥ LLM 术语纠正
-      showDock(false); sentSync = false;
+      showDock(true); sentSync = false;
       const corr = DATA.corrections;
       const chips = corr.slice(0, 20).map(c => `<span class="dp-chip dp-fix">${esc(c.wrong)} → ${esc(c.right)}<b>×${c.count}</b></span>`).join("");
       const rows = DATA.sentences.filter(s => s.optimized !== s.raw).map(s => {
-        const hit = corr.find(c => s.raw.includes(c.wrong));
         let rawHtml = esc(s.raw), optHtml = esc(s.optimized);
-        if (hit) {
-          rawHtml = rawHtml.split(esc(hit.wrong)).join(`<mark class="dp-w">${esc(hit.wrong)}</mark>`);
-          optHtml = optHtml.split(esc(hit.right)).join(`<mark class="dp-r">${esc(hit.right)}</mark>`);
+        if (s.diff && s.diff.length) {                    // 字级 diff 突出（collect_demo 预计算）
+          s.diff.forEach(d => {
+            if (d.a) rawHtml = rawHtml.split(esc(d.a)).join(`<mark class="dp-w">${esc(d.a)}</mark>`);
+            if (d.b) optHtml = optHtml.split(esc(d.b)).join(`<mark class="dp-r">${esc(d.b)}</mark>`);
+          });
+        } else {                                          // 旧数据回退：纠错映射匹配
+          const hit = corr.find(c => s.raw.includes(c.wrong));
+          if (hit) {
+            rawHtml = rawHtml.split(esc(hit.wrong)).join(`<mark class="dp-w">${esc(hit.wrong)}</mark>`);
+            optHtml = optHtml.split(esc(hit.right)).join(`<mark class="dp-r">${esc(hit.right)}</mark>`);
+          }
         }
         return `<div class="dp-sent dp-fade"><span class="dp-ts">${fmt(s.t0)}</span>
+          ${s.t1 != null ? `<button class="dp-play" data-frag="${s.t0},${s.t1}">▶</button>` : ""}
           <span class="dp-txt">${rawHtml}<span class="dp-arrow">⇒</span>${optHtml}</span></div>`;
       }).join("");
       body.innerHTML = `
         <div class="dp-card dp-fade"><h4>术语纠正 · ${DATA.sentences.filter(s => s.optimized !== s.raw).length} 句被修改</h4>
           <p style="line-height:1.85">漏过热词层的同音错字（「前臂」应为<b>前壁</b>、「回升」应为<b>回声</b>这类需要上下文判断的错误），
           由本地大模型逐句纠正，且绝不改动数值与左右侧等关键信息。</p>
+          <p class="dp-tip">红色删除线为原文、绿色为纠正后，点击 ▶ 可回放对应语音片段。</p>
           ${chips ? `<div class="dp-chips" style="margin-top:10px">${chips}</div>` : ""}</div>
         ${rows || "<div class='dp-card'><span class='dp-tip'>本段音频无需要纠正的句子</span></div>"}`;
     };
 
     RENDER[6] = () => {                                   // ⑦ 报告内容提取
-      showDock(false); sentSync = false;
+      showDock(true); sentSync = false;
       const items = DATA.report_items;
       const nKeep = items.filter(s => s.is_report).length;
+      const rows = items.map(s => {
+        const cls = DATA.sentences.filter(c => c.si === s.i);
+        const raw = cls.map(c => c.raw).join("");
+        const opt = cls.map(c => c.optimized).join("");
+        const corrected = opt !== raw;
+        const lastT1 = cls.length && cls[cls.length - 1].t1 != null ? cls[cls.length - 1].t1 : null;
+        const proc = corrected
+          ? `<del>${esc(raw)}</del>⇒ ${esc(opt)}`
+          : esc(raw);
+        return `<div class="dp-sent ${s.is_report ? "" : "dim"} dp-fade">
+          <span class="dp-ts">${fmt(s.t0)}</span>
+          ${lastT1 != null ? `<button class="dp-play" data-frag="${s.t0},${lastT1}">▶</button>` : ""}
+          <div class="dp-col">
+            <div class="dp-proc">${proc}</div>
+            <div class="dp-res">${s.is_report
+              ? `<span class="dp-tag dp-keep">进入报告</span><span class="dp-txt"><b>${esc(s.enhanced)}</b></span>`
+              : `<span class="dp-tag">【非报告内容】已剔除</span>`}</div>
+          </div></div>`;
+      }).join("");
       body.innerHTML = `
-        <div class="dp-card dp-fade"><h4>报告成分筛选 · ${nKeep} / ${items.length} 句进入报告</h4>
-          <p style="line-height:1.85">门诊口述混杂大量「脱鞋躺好」「医保单子」等对话。大模型逐句判断：
-          报告成分（含残缺的测量报读）保留，闲聊与对患者的指示全部剔除。</p></div>
+        <div class="dp-card dp-fade"><h4>报告内容提取 · ${nKeep} / ${items.length} 句进入报告</h4>
+          <p style="line-height:1.85">全链路结果汇聚于此：<b>识别 ${DATA.sentences.length} 短句</b>合并成 ${items.length} 句 →
+          <b>LLM 术语纠正</b>（红划线为识别原文，⇒ 后为纠正结果）→
+          <b>LLM 内容提取</b>：报告成分（含残缺的测量报读）保留为规范的提取文本，闲聊、对患者的指示与杂音全部剔除。</p></div>
         <div class="dp-filters">
           <button class="on" data-f="all">全部</button>
           <button data-f="keep">仅报告内容</button>
           <button data-f="drop">仅剔除项</button>
         </div>
-        <div id="dp-sent-list">${items.map(s => `
-          <div class="dp-sent ${s.is_report ? "" : "dim"} dp-fade">
-            <span class="dp-ts">${fmt(s.t0)}</span>
-            <span class="dp-txt">${esc(s.optimized)}</span>
-            <span class="dp-tag ${s.is_report ? "dp-keep" : ""}">${s.is_report ? "报告内容 ✓" : "【非报告内容】已剔除"}</span>
-          </div>`).join("")}</div>`;
+        <div id="dp-sent-list">${rows}</div>`;
     };
     body.addEventListener("click", e => {                 // 第 7 步过滤器
       const btn = e.target.closest("[data-f]");

@@ -69,6 +69,26 @@ const panel = window.DemoPanel.mount(container, {
 for (let i = 0; i < 10; i++) panel.goto(i);
 console.log("步骤 1-10 渲染无异常；onActiveNode 调用", activeSteps.length, "次");
 
+/* 第 5 步：热词标红 + 片段回放；第 6 步：纠正红/绿突出 + 片段回放 */
+const bodyEl = container.querySelector(".dp-body");
+panel.goto(4);
+if (!bodyEl.innerHTML.includes("dp-hw") || !bodyEl.innerHTML.includes("data-frag"))
+  throw new Error("步骤⑤热词标红/回放缺失");
+panel.goto(5);
+if (!bodyEl.innerHTML.includes("dp-w") || !bodyEl.innerHTML.includes("dp-r")
+  || !bodyEl.innerHTML.includes("data-frag"))
+  throw new Error("步骤⑥纠正突出/回放缺失");
+console.log("步骤⑤热词标红 + 步骤⑥纠正突出 + 片段回放按钮断言通过");
+
+/* 第 7 步：识别→纠正→提取三段链路 + 回放 */
+panel.goto(6);
+if (!bodyEl.innerHTML.includes("dp-proc") || !bodyEl.innerHTML.includes("dp-keep")
+  || !bodyEl.innerHTML.includes("data-frag"))
+  throw new Error("步骤⑦提取链路/回放缺失");
+if (!bodyEl.innerHTML.includes("进入报告"))
+  throw new Error("步骤⑦缺少提取结果标记");
+console.log("步骤⑦识别→纠正→提取链路断言通过");
+
 /* 第 7 步过滤器按钮路径（closest 桩返回 null 即安全跳过） */
 panel.goto(6);
 
