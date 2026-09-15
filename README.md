@@ -105,6 +105,30 @@ python -m venv .venv
 
 已知残留（如实呈现，暂不修）：案例1 子宫位置被误写"后位"（金标准前位，源于残缺句误归纳）；案例3 右/左侧弱回声仍列在【子宫】节下（验证集 F06 已通过，真实长上下文未触发）；案例2 严重残缺报读（"三零二二十八"）只能有损还原。回归验证集 `eval_terms.py` 37 条全过。
 
+## 分步演示（流程图嵌入式 · 纯离线网页）
+
+面向非技术听众的流程演示：主界面即 archify 流程图（`archify/us_flow.html`，10 个节点对应 10 步流程），
+点击节点右上角「▶」徽标（或双击节点）演示该环节；右下角「▶ 从头演示」自动走完全程
+（播放音频 + 转写按 token 级时间轴同步浮现，支持 1×/2×/4× 倍速与进度条拖动，后续步骤无需点击自动推进）；
+最后与医生签发的实际报告逐字比对。**演示不调用任何模型。**
+
+```bash
+# 1) 一次性采集（需模型环境；LLM 结果缓存于 demo_data/_cache_*.json，
+#    之后可 --refresh-timestamps 秒级刷新时间轴，或免模型重建数据）
+.venv/Scripts/python collect_demo.py data/0911-案例/2026-07-20-15-12-39.wav
+
+# 2) 注入生成演示页（us_flow.html 更新后重跑一次即可）
+.venv/Scripts/python demo/inject_demo.py
+
+# 3) 演示：双击打开 archify/us_flow_demo.html（file:// 直接可用，无需服务器）
+```
+
+- 数据自校验：`python collect_demo.py --self-check`；注入产物校验：`python demo/inject_demo.py --check`
+- 页面逻辑回归：`node demo/_smoke_test.js`（极简 DOM 桩跑通全部渲染器与同步逻辑）
+- 步骤 ③ 声纹识别、⑨ 接入 EMR 为**示意数据**（实际系统由声纹库与院内 EMR/PACS 提供），页面已标注
+- 隐私：`demo/demo_data.js`、`demo_data/` 含患者口述转写（.gitignore 已排除）；
+  模板 `demo/panel.js`、注入脚本 `demo/inject_demo.py` 与流程图 `archify/us_flow.html` 可入库
+
 ## 项目结构
 
 ```

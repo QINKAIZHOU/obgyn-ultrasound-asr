@@ -23,3 +23,8 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+# 演示数据（含患者口述转写，隐私不入库；demo/demo.html 模板本身可入库）
+demo/demo_data.js
+demo_data/
+# 演示页生成物（由 demo/inject_demo.py 从 archify/us_flow.html 注入生成）
+archify/us_flow_demo.html

@@ -1,0 +1,69 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "AI 超声语音助手 · 系统技术流程图",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "doctor", "label": "医生 · 超声工作站（前端 UI）" },
+    { "id": "asr", "label": "语音识别引擎 ASR（FunASR Runtime）" },
+    { "id": "llm", "label": "智能后处理（LLM）" },
+    { "id": "report", "label": "报告生成 · EMR/PACS 集成" }
+  ],
+  "phases": [
+    { "id": "p1", "label": "① 采集与指令", "fromCol": 0, "toCol": 0 },
+    { "id": "p2", "label": "② 实时语音识别（SeACo-Paraformer）", "fromCol": 1, "toCol": 2, "variant": "emphasis" },
+    { "id": "p3", "label": "③ 纠错与内容提取", "fromCol": 3, "toCol": 3 },
+    { "id": "p4", "label": "④ 模板填充与结构化报告", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "asr_grp", "label": "ASR 服务（院内内网部署）", "lane": "asr", "fromCol": 0, "toCol": 2, "variant": "emphasis" },
+    { "id": "llm_grp", "label": "LLM 后处理链路", "lane": "llm", "fromCol": 2, "toCol": 3, "variant": "dashed" }
+  ],
+  "mainPath": ["speech", "template_cmd", "asr", "llm", "extract", "fill", "report"],
+  "nodes": [
+    { "id": "speech", "lane": "doctor", "col": 0, "type": "external", "label": "语音输入", "sublabel": "医生口述 · 麦克风拾音", "width": 150 },
+    { "id": "template_cmd", "lane": "doctor", "col": 1, "type": "frontend", "label": "语音指令 · 指定模板", "sublabel": "如“插入妇科常规模板”", "width": 160 },
+    { "id": "voiceid", "lane": "asr", "col": 0, "type": "security", "label": "声纹识别", "sublabel": "确认医生身份 · 权限绑定", "width": 150, "yOffset": 60 },
+    { "id": "asr", "lane": "asr", "col": 1, "type": "backend", "label": "SeACo-Paraformer", "sublabel": "非自回归 · 实时流式转写", "tag": "核心 ASR", "width": 170 },
+    { "id": "hotword", "lane": "asr", "col": 2, "type": "database", "label": "医疗热词库", "sublabel": "B超/经阴道/IUD 等专有词强化", "width": 160, "yOffset": 60 },
+    { "id": "llm", "lane": "llm", "col": 2, "type": "backend", "label": "LLM 术语纠正", "sublabel": "口语 → 规范医学术语", "width": 160 },
+    { "id": "extract", "lane": "llm", "col": 3, "type": "backend", "label": "报告内容提取", "sublabel": "结构化抽取所见/诊断", "width": 160 },
+    { "id": "emr", "lane": "report", "col": 4, "type": "database", "label": "接入电子病历 EMR", "sublabel": "调取既往史 · PACS 影像", "width": 160, "yOffset": 70 },
+    { "id": "fill", "lane": "report", "col": 4, "type": "backend", "label": "填充报告模板", "sublabel": "按妇科超声模板落位", "width": 160 },
+    { "id": "report", "lane": "report", "col": 5, "type": "backend", "label": "生成结构化报告", "sublabel": "可签发 · 回写 RIS/PACS", "tag": "产出", "width": 160 }
+  ],
+  "edges": [
+    { "id": "e1", "from": "speech", "to": "template_cmd", "label": "口述音频流", "variant": "emphasis" },
+    { "id": "e2", "from": "template_cmd", "to": "asr", "label": "PCM 音频流", "variant": "emphasis" },
+    { "id": "e3", "from": "voiceid", "to": "asr", "label": "声纹鉴权", "variant": "security", "role": "branch" },
+    { "id": "e4", "from": "hotword", "to": "asr", "label": "热词 biasing", "variant": "dashed", "role": "branch" },
+    { "id": "e5", "from": "asr", "to": "llm", "label": "实时文本", "variant": "emphasis" },
+    { "id": "e6", "from": "llm", "to": "extract", "label": "规范文本", "variant": "default" },
+    { "id": "e7", "from": "emr", "to": "fill", "label": "病历/影像回填", "variant": "dashed", "role": "return" },
+    { "id": "e8", "from": "extract", "to": "fill", "label": "结构化字段", "variant": "default" },
+    { "id": "e9", "from": "fill", "to": "report", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "嵌入超声工作站方式",
+      "items": [
+        "FunASR Runtime 以 HTTP/gRPC 服务部署在院内内网，不经过公网",
+        "工作站麦克风采集音频 → ASR 服务 → 转写文本实时回传 UI 文本框",
+        "LLM 纠错与模板填充在本地/院内推理，医生核对后一键引用、签发"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "SeACo-Paraformer 技术要点",
+      "items": [
+        "SeACo：语义增强 + 对比优化；Paraformer：非自回归一次出句，低延迟",
+        "配套 fsmn-vad 端点检测 + CT-Transformer 标点恢复",
+        "医疗热词列表注入，提升经阴道/宫腔/IUD/血流等术语识别率"
+      ]
+    }
+  ]
+}
